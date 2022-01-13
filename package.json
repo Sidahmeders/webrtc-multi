@@ -1,0 +1,13 @@
+{
+  "name": "webrtc_multi",
+  "version": "1.0.0",
+  "description": "a simple WebRTC example for a mesh setup.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^3.3.2"
+  }
+}
