@@ -1,4 +1,4 @@
-const WS_PORT = 8443 //make sure this matches the port for the webscokets server
+const WS_PORT = 8080 //make sure this matches the port for the webscokets server
 
 var localUuid
 var localDisplayName
@@ -40,7 +40,7 @@ function start() {
 
       // set up websocket and message all existing clients
       .then(() => {
-        serverConnection = new WebSocket('wss://' + window.location.hostname + ':' + WS_PORT)
+        serverConnection = new WebSocket('ws://' + window.location.hostname + ':' + WS_PORT)
         serverConnection.onmessage = gotMessageFromServer
         serverConnection.onopen = event => {
           serverConnection.send(JSON.stringify({ 'displayName': localDisplayName, 'uuid': localUuid, 'dest': 'all' }))

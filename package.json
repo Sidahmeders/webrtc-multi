@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "a simple WebRTC example for a mesh setup.",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "dev": "nodemon server.js"
   },
   "license": "MIT",
   "dependencies": {
-    "ws": "^3.3.2"
+    "ws": "^8.4.1"
   }
 }

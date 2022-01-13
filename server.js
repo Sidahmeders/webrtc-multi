@@ -1,17 +1,8 @@
-const HTTPS_PORT = 8443 //default port for https is 443
-const HTTP_PORT = 8080  //default port for http is 80
+const HTTP_PORT = 8080
 
-const fs = require('fs')
-const http = require('http')
-const https = require('https')
-const WebSocket = require('ws')
-const WebSocketServer = WebSocket.Server
-
-// Yes, TLS is required
-const serverConfig = {
-  key: fs.readFileSync('key.pem'),
-  cert: fs.readFileSync('cert.pem')
-}
+import fs from 'fs'
+import http from 'http'
+import WebSokect, { WebSocketServer } from 'ws'
 
 // Create a server for the client html page
 const handleRequest = (req, res) => {
@@ -27,28 +18,22 @@ const handleRequest = (req, res) => {
   }
 }
 
-const httpsServer = https.createServer(serverConfig, handleRequest)
-httpsServer.listen(HTTPS_PORT, () => console.log(`server running on port ${HTTPS_PORT}...`))
+const httpServer = http.createServer(handleRequest)
+.listen(HTTP_PORT, () => console.log(`server running on ${HTTP_PORT}...`))
 
 // Create a server for handling websocket calls
-const wss = new WebSocketServer({ server: httpsServer })
+const wss = new WebSocketServer({ server: httpServer })
 
 wss.on('connection', ws => {
-  ws.on('message', message => {
-    // Broadcast any received message to all clients
-    wss.broadcast(message)
+  ws.on('message', (data, isBinary) => {
+    const message = isBinary ? data : data.toString()
+    wss.broadcast(message) // Broadcast any received message to all clients
   })
   ws.on('error', () => ws.terminate())
 })
 
-wss.broadcast = function (data){
-  this.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) client.send(data)
+wss.broadcast = function(data) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSokect.OPEN) client.send(data)
   })
 }
-
-// Separate server to redirect from http to https
-http.createServer((req, res) => {
-    res.writeHead(301, { "Location": "https://" + req.headers['host'] + req.url })
-    res.end()
-}).listen(HTTP_PORT, () => console.log(`server running on ${HTTP_PORT}...`))
