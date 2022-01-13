@@ -1,56 +1,21 @@
-const WS_PORT = 8080 //make sure this matches the port for the webscokets server
+import { createUUID, makeLabel, updateLayout } from './utils.js'
+import { errorHandler } from './handlers.js'
 
-var localUuid
-var localDisplayName
-var localStream
-var serverConnection
-var peerConnections = {} // key is uuid, values are peer connection object and user defined display name string
-
-var peerConnectionConfig = {
-  'iceServers': [
-    { 'urls': 'stun:stun.stunprotocol.org:3478' },
-    { 'urls': 'stun:stun.l.google.com:19302' },
-  ]
-}
-
-function start() {
+(async function start() {
   localUuid = createUUID()
-
-  // check if "&displayName=xxx" is appended to URL, otherwise alert user to populate
-  localDisplayName = prompt('Enter your name', '')
-  document.getElementById('localVideoContainer').appendChild(makeLabel(localDisplayName))
-
-  // specify no audio for user media
-  var constraints = {
-    video: {
-      width: {max: 320},
-      height: {max: 240},
-      frameRate: {max: 30},
-    },
-    audio: false,
-  }
+  roomName = prompt('Enter the roomName', '')
+  document.getElementById('localVideoContainer').appendChild(makeLabel(roomName))
 
   // set up local video stream
-  if (navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices.getUserMedia(constraints)
-      .then(stream => {
-        localStream = stream
-        document.getElementById('localVideo').srcObject = stream
-      }).catch(errorHandler)
+  const localMediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+  localStream = localMediaStream
+  document.getElementById('localVideo').srcObject = localStream
 
-      // set up websocket and message all existing clients
-      .then(() => {
-        serverConnection = new WebSocket('ws://' + window.location.hostname + ':' + WS_PORT)
-        serverConnection.onmessage = gotMessageFromServer
-        serverConnection.onopen = event => {
-          serverConnection.send(JSON.stringify({ 'displayName': localDisplayName, 'uuid': localUuid, 'dest': 'all' }))
-        }
-      }).catch(errorHandler)
-
-  } else {
-    alert('Your browser does not support getUserMedia API')
-  }
-}
+  // set up websocket and message all existing clients
+  serverConnection = new WebSocket(wssURL)
+  serverConnection.onmessage = gotMessageFromServer
+  serverConnection.onopen = () => serverConnection.send(JSON.stringify({ 'displayName': roomName, 'uuid': localUuid, 'dest': 'all' }))
+})();
 
 function gotMessageFromServer(message) {
   var signal = JSON.parse(message.data)
@@ -62,7 +27,7 @@ function gotMessageFromServer(message) {
   if (signal.displayName && signal.dest == 'all') {
     // set up peer connection object for a newcomer peer
     setUpPeer(peerUuid, signal.displayName)
-    serverConnection.send(JSON.stringify({ 'displayName': localDisplayName, 'uuid': localUuid, 'dest': peerUuid }))
+    serverConnection.send(JSON.stringify({ 'displayName': roomName, 'uuid': localUuid, 'dest': peerUuid }))
 
   } else if (signal.displayName && signal.dest == localUuid) {
     // initiate call if we are the newcomer peer
@@ -100,8 +65,7 @@ function gotIceCandidate(event, peerUuid) {
 }
 
 function createdDescription(description, peerUuid) {
-  console.log(`got description, peer ${peerUuid}`)
-  peerConnections[peerUuid].pc.setLocalDescription(description).then(function () {
+  peerConnections[peerUuid].pc.setLocalDescription(description).then(() => {
     serverConnection.send(JSON.stringify({ 'sdp': peerConnections[peerUuid].pc.localDescription, 'uuid': localUuid, 'dest': peerUuid }))
   }).catch(errorHandler)
 }
@@ -113,7 +77,7 @@ function gotRemoteStream(event, peerUuid) {
   vidElement.setAttribute('muted', '')
   vidElement.srcObject = event.streams[0]
 
-  var vidContainer = document.createElement('div');
+  var vidContainer = document.createElement('div')
   vidContainer.setAttribute('id', 'remoteVideo_' + peerUuid)
   vidContainer.setAttribute('class', 'videoContainer')
   vidContainer.appendChild(vidElement)
@@ -131,40 +95,3 @@ function checkPeerDisconnect(event, peerUuid) {
     updateLayout()
   }
 }
-
-function updateLayout() {
-  // update CSS grid based on number of diplayed videos
-  let rowHeight = '98vh'
-  let colWidth = '98vw'
-  let numVideos = Object.keys(peerConnections).length + 1 // add one to include local video
-
-  if (numVideos > 1 && numVideos <= 4) { // 2x2 grid
-    rowHeight = '48vh'
-    colWidth = '48vw'
-  } else if (numVideos > 4) { // 3x3 grid
-    rowHeight = '32vh'
-    colWidth = '32vw'
-  }
-
-  document.documentElement.style.setProperty(`--rowHeight`, rowHeight)
-  document.documentElement.style.setProperty(`--colWidth`, colWidth)
-}
-
-function makeLabel(label) {
-  const vidLabel = document.createElement('div')
-  vidLabel.appendChild(document.createTextNode(label))
-  vidLabel.setAttribute('class', 'videoLabel')
-  return vidLabel
-}
-
-function errorHandler(error) {
-  console.log(error)
-}
-
-// Strictly speaking, it's not a real UUID, but it gets the job done here
-function createUUID() {
-  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
-  return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4()
-}
-
-start()
