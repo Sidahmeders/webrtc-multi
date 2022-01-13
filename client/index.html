@@ -4,8 +4,6 @@
 <head>
   <link rel="icon" href="data:,"> <!-- prevent extraneous favicon requests -->
   <link rel="stylesheet" href="style.css">
-  <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-  <script src="webrtc.js"></script>
 </head>
 <body>
   <div id="videos" class="videos">
@@ -15,9 +13,7 @@
     <!-- Remote videos get appended here -->
   </div>
 
-  <script type="text/javascript">
-    start()
-  </script>
-
+  <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+  <script type="module" src="webrtc.js"></script>
 </body>
 </html>

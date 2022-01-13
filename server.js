@@ -1,25 +1,16 @@
-const HTTP_PORT = 8080
-
-import fs from 'fs'
-import http from 'http'
+import path from 'path'
+import express from 'express'
+import { createServer } from 'http'
 import WebSokect, { WebSocketServer } from 'ws'
 
-// Create a server for the client html page
-const handleRequest = (req, res) => {
- if (req.url === '/webrtc.js') {
-    res.writeHead(200, { 'Content-Type': 'application/javascript' })
-    res.end(fs.readFileSync('client/webrtc.js'))
-  } else if (req.url === '/style.css') {
-    res.writeHead(200, { 'Content-Type': 'text/css' })
-    res.end(fs.readFileSync('client/style.css'))
-  } else {
-    res.writeHead(200, { 'Content-Type': 'text/html' })
-    res.end(fs.readFileSync('client/index.html'))
-  }
-}
+const app = express()
+const httpServer = createServer(app)
 
-const httpServer = http.createServer(handleRequest)
-.listen(HTTP_PORT, () => console.log(`server running on ${HTTP_PORT}...`))
+app.use(express.static(path.join(path.resolve(), '/client')))
+app.get('/', (_, res) => res.render('index'))
+
+const HTTP_PORT = 8080
+httpServer.listen(HTTP_PORT, () => console.log(`server running on ${HTTP_PORT}...`))
 
 // Create a server for handling websocket calls
 const wss = new WebSocketServer({ server: httpServer })
