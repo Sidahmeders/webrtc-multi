@@ -1,20 +1,20 @@
-import { sendMessage, createUUID, makeLabel, updateLayout } from './utils.js'
-import { errorHandler } from './handlers.js'
+import { sendMessage, createUUID, makeLabel } from './utils.js'
+import { 
+  errorHandler, 
+  localStreamHanlder, 
+  onIceCandidateHandler, 
+  onOpenWssHandler, 
+  onPeerDisconnectHandler, 
+  remoteStreamHandler 
+} from './handlers.js'
 
 (async function start() {
-  localUuid = createUUID()
-  displayName = prompt('Enter your name', '')
-  document.getElementById('localVideoContainer').appendChild(makeLabel(displayName))
-
-  // set up local video stream
-  const localMediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-  localStream = localMediaStream
-  document.getElementById('localVideo').srcObject = localStream
-
+  await localStreamHanlder()
+  
   // set up websocket and message all existing clients
   wss = new WebSocket(wssURL)
+  wss.onopen = onOpenWssHandler
   wss.onmessage = handleServerMessages
-  wss.onopen = () => sendMessage({ peerName: displayName, peerUuid: localUuid, dest: 'all' })
 })();
 
 function handleServerMessages(message) {
@@ -45,9 +45,9 @@ function handleServerMessages(message) {
 
 function setUpPeer(peerUuid, displayName, initCall = false) {
   peerConnections[peerUuid] = { displayName, pc: new RTCPeerConnection(peerConnectionConfig) }
-  peerConnections[peerUuid].pc.onicecandidate = event => gotIceCandidate(event, peerUuid)
-  peerConnections[peerUuid].pc.ontrack = event => gotRemoteStream(event, peerUuid)
-  peerConnections[peerUuid].pc.oniceconnectionstatechange = event => checkPeerDisconnect(event, peerUuid)
+  peerConnections[peerUuid].pc.onicecandidate = event => onIceCandidateHandler(event, peerUuid)
+  peerConnections[peerUuid].pc.ontrack = event => remoteStreamHandler(event, peerUuid)
+  peerConnections[peerUuid].pc.oniceconnectionstatechange = event => onPeerDisconnectHandler(event, peerUuid)
   peerConnections[peerUuid].pc.addStream(localStream)
 
   if (initCall) {
@@ -55,40 +55,8 @@ function setUpPeer(peerUuid, displayName, initCall = false) {
   }
 }
 
-function gotIceCandidate(event, peerUuid) {
-  if (event.candidate != null) {
-    sendMessage({ peerICE: event.candidate, peerUuid: localUuid, dest: peerUuid })
-  }
-}
-
 function createdDescription(description, peerUuid) {
   peerConnections[peerUuid].pc.setLocalDescription(description).then(() => {
     sendMessage({ peerSDP: peerConnections[peerUuid].pc.localDescription, peerUuid: localUuid, dest: peerUuid })
   }).catch(errorHandler)
-}
-
-function gotRemoteStream(event, peerUuid) {
-  //assign stream to new HTML video element
-  let vidElement = document.createElement('video')
-  vidElement.setAttribute('autoplay', '')
-  vidElement.setAttribute('muted', '')
-  vidElement.srcObject = event.streams[0]
-
-  let vidContainer = document.createElement('div')
-  vidContainer.setAttribute('id', 'remoteVideo_' + peerUuid)
-  vidContainer.setAttribute('class', 'videoContainer')
-  vidContainer.appendChild(vidElement)
-  vidContainer.appendChild(makeLabel(peerConnections[peerUuid].displayName))
-
-  document.getElementById('videos').appendChild(vidContainer)
-  updateLayout()
-}
-
-function checkPeerDisconnect(event, peerUuid) {
-  let state = peerConnections[peerUuid].pc.iceConnectionState
-  if (state === "failed" || state === "closed" || state === "disconnected") {
-    delete peerConnections[peerUuid]
-    document.getElementById('videos').removeChild(document.getElementById('remoteVideo_' + peerUuid))
-    updateLayout()
-  }
 }
