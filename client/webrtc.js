@@ -14,35 +14,33 @@ import { errorHandler } from './handlers.js'
   // set up websocket and message all existing clients
   wss = new WebSocket(wssURL)
   wss.onmessage = handleServerMessages
-  wss.onopen = () => sendMessage({ displayName, uuid: localUuid, dest: 'all' })
+  wss.onopen = () => sendMessage({ peerName: displayName, uuid: localUuid, dest: 'all' })
 })();
 
 function handleServerMessages(message) {
-  var signal = JSON.parse(message.data)
-  var peerUuid = signal.uuid
+  message = JSON.parse(message.data)
+  const { peerName, peerICE, peerSDP, dest } = message
+  let peerUuid = message.uuid
 
   // Ignore messages that are not for us or from ourselves
-  if (peerUuid == localUuid || (signal.dest != localUuid && signal.dest != 'all')) return
+  if (peerUuid == localUuid || (dest != localUuid && dest != 'all')) return
 
-  if (signal.displayName && signal.dest == 'all') {
+  if (peerName && dest == 'all') {
     // set up peer connection object for a newcomer peer
-    setUpPeer(peerUuid, signal.displayName)
-    sendMessage({ displayName, uuid: localUuid, dest: peerUuid })
-
-  } else if (signal.displayName && signal.dest == localUuid) {
+    setUpPeer(peerUuid, peerName)
+    sendMessage({ peerName: displayName, uuid: localUuid, dest: peerUuid })
+  } else if (peerName && dest == localUuid) {
     // initiate call if we are the newcomer peer
-    setUpPeer(peerUuid, signal.displayName, true)
-
-  } else if (signal.sdp) {
-    peerConnections[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(function () {
+    setUpPeer(peerUuid, peerName, true)
+  } else if (peerSDP) {
+    peerConnections[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP)).then(function () {
       // Only create answers in response to offers
-      if (signal.sdp.type == 'offer') {
+      if (peerSDP.type == 'offer') {
         peerConnections[peerUuid].pc.createAnswer().then(description => createdDescription(description, peerUuid)).catch(errorHandler)
       }
     }).catch(errorHandler)
-
-  } else if (signal.ice) {
-    peerConnections[peerUuid].pc.addIceCandidate(new RTCIceCandidate(signal.ice)).catch(errorHandler)
+  } else if (peerICE) {
+    peerConnections[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE)).catch(errorHandler)
   }
 }
 
@@ -60,24 +58,24 @@ function setUpPeer(peerUuid, displayName, initCall = false) {
 
 function gotIceCandidate(event, peerUuid) {
   if (event.candidate != null) {
-    sendMessage({ ice: event.candidate, uuid: localUuid, dest: peerUuid })
+    sendMessage({ peerICE: event.candidate, uuid: localUuid, dest: peerUuid })
   }
 }
 
 function createdDescription(description, peerUuid) {
   peerConnections[peerUuid].pc.setLocalDescription(description).then(() => {
-    sendMessage({ sdp: peerConnections[peerUuid].pc.localDescription, uuid: localUuid, dest: peerUuid })
+    sendMessage({ peerSDP: peerConnections[peerUuid].pc.localDescription, uuid: localUuid, dest: peerUuid })
   }).catch(errorHandler)
 }
 
 function gotRemoteStream(event, peerUuid) {
   //assign stream to new HTML video element
-  var vidElement = document.createElement('video')
+  let vidElement = document.createElement('video')
   vidElement.setAttribute('autoplay', '')
   vidElement.setAttribute('muted', '')
   vidElement.srcObject = event.streams[0]
 
-  var vidContainer = document.createElement('div')
+  let vidContainer = document.createElement('div')
   vidContainer.setAttribute('id', 'remoteVideo_' + peerUuid)
   vidContainer.setAttribute('class', 'videoContainer')
   vidContainer.appendChild(vidElement)
@@ -88,7 +86,7 @@ function gotRemoteStream(event, peerUuid) {
 }
 
 function checkPeerDisconnect(event, peerUuid) {
-  var state = peerConnections[peerUuid].pc.iceConnectionState
+  let state = peerConnections[peerUuid].pc.iceConnectionState
   if (state === "failed" || state === "closed" || state === "disconnected") {
     delete peerConnections[peerUuid]
     document.getElementById('videos').removeChild(document.getElementById('remoteVideo_' + peerUuid))

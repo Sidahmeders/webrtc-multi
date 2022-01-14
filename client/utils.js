@@ -1,7 +1,7 @@
 
-export function sendMessage({ displayName, uuid, dest, ice, sdp }) {
-  const payload = JSON.stringify({ displayName, uuid, dest, ice, sdp })
-  wss.send(payload)
+export function sendMessage({ peerName, peerSDP, peerICE, uuid, dest }) {
+  const message = JSON.stringify({ peerName, peerSDP, peerICE, uuid, dest })
+  wss.send(message)
 }
 
 export function createUUID() {
