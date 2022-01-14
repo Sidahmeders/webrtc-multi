@@ -14,21 +14,20 @@ import { errorHandler } from './handlers.js'
   // set up websocket and message all existing clients
   wss = new WebSocket(wssURL)
   wss.onmessage = handleServerMessages
-  wss.onopen = () => sendMessage({ peerName: displayName, uuid: localUuid, dest: 'all' })
+  wss.onopen = () => sendMessage({ peerName: displayName, peerUuid: localUuid, dest: 'all' })
 })();
 
 function handleServerMessages(message) {
   message = JSON.parse(message.data)
-  const { peerName, peerICE, peerSDP, dest } = message
-  let peerUuid = message.uuid
+  const { peerName, peerUuid, peerICE, peerSDP, dest } = message
 
-  // Ignore messages that are not for us or from ourselves
+  // Ignore messages that are not for us or from ourselves NOTE: this should be handled on the server
   if (peerUuid == localUuid || (dest != localUuid && dest != 'all')) return
 
   if (peerName && dest == 'all') {
     // set up peer connection object for a newcomer peer
     setUpPeer(peerUuid, peerName)
-    sendMessage({ peerName: displayName, uuid: localUuid, dest: peerUuid })
+    sendMessage({ peerName: displayName, peerUuid: localUuid, dest: peerUuid })
   } else if (peerName && dest == localUuid) {
     // initiate call if we are the newcomer peer
     setUpPeer(peerUuid, peerName, true)
@@ -58,13 +57,13 @@ function setUpPeer(peerUuid, displayName, initCall = false) {
 
 function gotIceCandidate(event, peerUuid) {
   if (event.candidate != null) {
-    sendMessage({ peerICE: event.candidate, uuid: localUuid, dest: peerUuid })
+    sendMessage({ peerICE: event.candidate, peerUuid: localUuid, dest: peerUuid })
   }
 }
 
 function createdDescription(description, peerUuid) {
   peerConnections[peerUuid].pc.setLocalDescription(description).then(() => {
-    sendMessage({ peerSDP: peerConnections[peerUuid].pc.localDescription, uuid: localUuid, dest: peerUuid })
+    sendMessage({ peerSDP: peerConnections[peerUuid].pc.localDescription, peerUuid: localUuid, dest: peerUuid })
   }).catch(errorHandler)
 }
 
