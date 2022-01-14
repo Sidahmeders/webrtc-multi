@@ -1,10 +1,10 @@
-import { createUUID, makeLabel, updateLayout } from './utils.js'
+import { sendMessage, createUUID, makeLabel, updateLayout } from './utils.js'
 import { errorHandler } from './handlers.js'
 
 (async function start() {
   localUuid = createUUID()
-  roomName = prompt('Enter the roomName', '')
-  document.getElementById('localVideoContainer').appendChild(makeLabel(roomName))
+  displayName = prompt('Enter your name', '')
+  document.getElementById('localVideoContainer').appendChild(makeLabel(displayName))
 
   // set up local video stream
   const localMediaStream = await navigator.mediaDevices.getUserMedia(constraints)
@@ -12,12 +12,12 @@ import { errorHandler } from './handlers.js'
   document.getElementById('localVideo').srcObject = localStream
 
   // set up websocket and message all existing clients
-  serverConnection = new WebSocket(wssURL)
-  serverConnection.onmessage = gotMessageFromServer
-  serverConnection.onopen = () => serverConnection.send(JSON.stringify({ 'displayName': roomName, 'uuid': localUuid, 'dest': 'all' }))
+  wss = new WebSocket(wssURL)
+  wss.onmessage = handleServerMessages
+  wss.onopen = () => sendMessage({ displayName, uuid: localUuid, dest: 'all' })
 })();
 
-function gotMessageFromServer(message) {
+function handleServerMessages(message) {
   var signal = JSON.parse(message.data)
   var peerUuid = signal.uuid
 
@@ -27,7 +27,7 @@ function gotMessageFromServer(message) {
   if (signal.displayName && signal.dest == 'all') {
     // set up peer connection object for a newcomer peer
     setUpPeer(peerUuid, signal.displayName)
-    serverConnection.send(JSON.stringify({ 'displayName': roomName, 'uuid': localUuid, 'dest': peerUuid }))
+    sendMessage({ displayName, uuid: localUuid, dest: peerUuid })
 
   } else if (signal.displayName && signal.dest == localUuid) {
     // initiate call if we are the newcomer peer
@@ -47,7 +47,7 @@ function gotMessageFromServer(message) {
 }
 
 function setUpPeer(peerUuid, displayName, initCall = false) {
-  peerConnections[peerUuid] = { 'displayName': displayName, 'pc': new RTCPeerConnection(peerConnectionConfig) }
+  peerConnections[peerUuid] = { displayName, pc: new RTCPeerConnection(peerConnectionConfig) }
   peerConnections[peerUuid].pc.onicecandidate = event => gotIceCandidate(event, peerUuid)
   peerConnections[peerUuid].pc.ontrack = event => gotRemoteStream(event, peerUuid)
   peerConnections[peerUuid].pc.oniceconnectionstatechange = event => checkPeerDisconnect(event, peerUuid)
@@ -60,13 +60,13 @@ function setUpPeer(peerUuid, displayName, initCall = false) {
 
 function gotIceCandidate(event, peerUuid) {
   if (event.candidate != null) {
-    serverConnection.send(JSON.stringify({ 'ice': event.candidate, 'uuid': localUuid, 'dest': peerUuid }))
+    sendMessage({ ice: event.candidate, uuid: localUuid, dest: peerUuid })
   }
 }
 
 function createdDescription(description, peerUuid) {
   peerConnections[peerUuid].pc.setLocalDescription(description).then(() => {
-    serverConnection.send(JSON.stringify({ 'sdp': peerConnections[peerUuid].pc.localDescription, 'uuid': localUuid, 'dest': peerUuid }))
+    sendMessage({ sdp: peerConnections[peerUuid].pc.localDescription, uuid: localUuid, dest: peerUuid })
   }).catch(errorHandler)
 }
 

@@ -1,4 +1,9 @@
 
+export function sendMessage({ displayName, uuid, dest, ice, sdp }) {
+  const payload = JSON.stringify({ displayName, uuid, dest, ice, sdp })
+  wss.send(payload)
+}
+
 export function createUUID() {
   const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4()

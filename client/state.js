@@ -1,8 +1,8 @@
 var wssURL = `ws://${window.location.hostname}:8080`
-var serverConnection
+var wss
 var peerConnections = {} // key is uuid, values are peer connection object and user defined display name string
 var localUuid
-var roomName
+var displayName
 var localStream
 
 var constraints = {
