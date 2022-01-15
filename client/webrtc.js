@@ -34,8 +34,7 @@ function handleServerMessages(message) {
     peerConnections[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP))
     // Only create answers in response to offers
     if (peerSDP.type == 'offer') {
-      peerConnections[peerUuid].pc.createAnswer()
-      .then(description => createdDescription(description, peerUuid))
+      peerConnections[peerUuid].pc.createAnswer().then(description => createdDescription(description, peerUuid))
     }
   } else if (peerICE) {
     peerConnections[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE))
