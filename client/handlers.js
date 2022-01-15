@@ -1,8 +1,5 @@
 import { sendMessage, updateLayout, makeLabel, createUUID } from './utils.js'
 
-export function errorHandler(error) {
-  console.log(error)
-}
 export function onOpenWssHandler() {
   sendMessage({ peerName: displayName, peerUuid: localUuid, dest: 'all' })
 }

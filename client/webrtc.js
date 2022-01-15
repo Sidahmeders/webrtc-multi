@@ -1,6 +1,5 @@
 import { sendMessage } from './utils.js'
-import {
-  errorHandler, 
+import { 
   createlocalMediaStream, 
   onIceCandidateHandler, 
   onOpenWssHandler, 
@@ -32,14 +31,14 @@ function handleServerMessages(message) {
     // initiate call if we are the newcomer peer
     setUpPeer(peerUuid, peerName, true)
   } else if (peerSDP) {
-    peerConnections[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP)).then(function () {
-      // Only create answers in response to offers
-      if (peerSDP.type == 'offer') {
-        peerConnections[peerUuid].pc.createAnswer().then(description => createdDescription(description, peerUuid)).catch(errorHandler)
-      }
-    }).catch(errorHandler)
+    peerConnections[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP))
+    // Only create answers in response to offers
+    if (peerSDP.type == 'offer') {
+      peerConnections[peerUuid].pc.createAnswer()
+      .then(description => createdDescription(description, peerUuid))
+    }
   } else if (peerICE) {
-    peerConnections[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE)).catch(errorHandler)
+    peerConnections[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE))
   }
 }
 
@@ -51,12 +50,12 @@ function setUpPeer(peerUuid, displayName, initCall = false) {
   localStream.getTracks().forEach(track => peerConnections[peerUuid].pc.addTrack(track, localStream))
   
   if (initCall) {
-    peerConnections[peerUuid].pc.createOffer().then(description => createdDescription(description, peerUuid)).catch(errorHandler)
+    peerConnections[peerUuid].pc.createOffer().then(description => createdDescription(description, peerUuid))
   }
 }
 
 function createdDescription(description, peerUuid) {
   peerConnections[peerUuid].pc.setLocalDescription(description).then(() => {
     sendMessage({ peerSDP: peerConnections[peerUuid].pc.localDescription, peerUuid: localUuid, dest: peerUuid })
-  }).catch(errorHandler)
+  })
 }
