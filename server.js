@@ -18,6 +18,7 @@ const wss = new WebSocketServer({ server: httpServer })
 wss.on('connection', ws => {
   ws.on('message', (data, isBinary) => {
     const message = isBinary ? data : data.toString()
+    console.log(message)
     wss.broadcast(message) // Broadcast any received message to all clients
   })
   ws.on('error', () => ws.terminate())

@@ -1,6 +1,6 @@
 
-export function sendMessage({ peerName, peerSDP, peerICE, peerUuid, dest }) {
-  const message = JSON.stringify({ peerName, peerSDP, peerICE, peerUuid, dest })
+export function sendMessage({ peerName, peerUuid, dest, peerSDP, peerICE }) {
+  const message = JSON.stringify({ peerName, peerUuid, dest, peerSDP, peerICE })
   wss.send(message)
 }
 

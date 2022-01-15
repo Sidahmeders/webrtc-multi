@@ -1,7 +1,7 @@
-import { sendMessage, createUUID, makeLabel } from './utils.js'
-import { 
+import { sendMessage } from './utils.js'
+import {
   errorHandler, 
-  localStreamHanlder, 
+  createlocalMediaStream, 
   onIceCandidateHandler, 
   onOpenWssHandler, 
   onPeerDisconnectHandler, 
@@ -9,7 +9,7 @@ import {
 } from './handlers.js'
 
 (async function start() {
-  await localStreamHanlder()
+  await createlocalMediaStream()
   
   // set up websocket and message all existing clients
   wss = new WebSocket(wssURL)
@@ -48,8 +48,8 @@ function setUpPeer(peerUuid, displayName, initCall = false) {
   peerConnections[peerUuid].pc.onicecandidate = event => onIceCandidateHandler(event, peerUuid)
   peerConnections[peerUuid].pc.ontrack = event => remoteStreamHandler(event, peerUuid)
   peerConnections[peerUuid].pc.oniceconnectionstatechange = event => onPeerDisconnectHandler(event, peerUuid)
-  peerConnections[peerUuid].pc.addStream(localStream)
-
+  localStream.getTracks().forEach(track => peerConnections[peerUuid].pc.addTrack(track, localStream))
+  
   if (initCall) {
     peerConnections[peerUuid].pc.createOffer().then(description => createdDescription(description, peerUuid)).catch(errorHandler)
   }

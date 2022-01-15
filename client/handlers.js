@@ -22,7 +22,7 @@ export function onPeerDisconnectHandler(event, peerUuid) {
   }
 }
 
-export async function localStreamHanlder() {
+export async function createlocalMediaStream() {
   localUuid = createUUID()
   displayName = prompt('Enter your name', '')
   document.getElementById('localVideoContainer').appendChild(makeLabel(displayName))
