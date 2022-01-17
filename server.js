@@ -16,16 +16,31 @@ httpServer.listen(HTTP_PORT, () => console.log(`server running on ${HTTP_PORT}..
 const wss = new WebSocketServer({ server: httpServer })
 
 wss.on('connection', ws => {
+  wss.sendClientId(ws)
+
   ws.on('message', (data, isBinary) => {
     const message = isBinary ? data : data.toString()
-    console.log(message)
-    wss.broadcast(message) // Broadcast any received message to all clients
+    wss.broadcast(ws, message) // Broadcast any received message to all clients
   })
+
   ws.on('error', () => ws.terminate())
 })
 
-wss.broadcast = function(data) {
+wss.sendClientId = function(ws) {
+  ws.id = wss.getUuid()
+  const payload = JSON.stringify({ wsId: ws.id })
+  ws.send(payload)
+}
+
+wss.broadcast = function(ws, message) {
   wss.clients.forEach(client => {
-    if (client.readyState === WebSokect.OPEN) client.send(data)
+    if (client.readyState === WebSokect.OPEN) {
+      if (client != ws || message.dest == ws.id || message.dest == 'all') client.send(message)
+    }
   })
+}
+
+wss.getUuid = function() {
+  const s4 = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1)
+  return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4()
 }

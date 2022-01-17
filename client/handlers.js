@@ -1,8 +1,4 @@
-import { sendMessage, updateLayout, makeLabel, createUUID } from './utils.js'
-
-export function onOpenWssHandler() {
-  sendMessage({ peerName: displayName, peerUuid: localUuid, dest: 'all' })
-}
+import { sendMessage, updateLayout, makeLabel } from './utils.js'
 
 export function onIceCandidateHandler(event, peerUuid) {
   if (event.candidate) {
@@ -11,16 +7,15 @@ export function onIceCandidateHandler(event, peerUuid) {
 }
 
 export function onPeerDisconnectHandler(event, peerUuid) {
-  let state = peerConnections[peerUuid].pc.iceConnectionState
+  let state = peersMap[peerUuid].pc.iceConnectionState
   if (state === "failed" || state === "closed" || state === "disconnected") {
-    delete peerConnections[peerUuid]
+    delete peersMap[peerUuid]
     document.getElementById('videos').removeChild(document.getElementById('remoteVideo_' + peerUuid))
     updateLayout()
   }
 }
 
 export async function createlocalMediaStream() {
-  localUuid = createUUID()
   displayName = prompt('Enter your name', '')
   document.getElementById('localVideoContainer').appendChild(makeLabel(displayName))
 
@@ -41,7 +36,7 @@ export function remoteStreamHandler(event, peerUuid) {
   vidContainer.setAttribute('id', 'remoteVideo_' + peerUuid)
   vidContainer.setAttribute('class', 'videoContainer')
   vidContainer.appendChild(vidElement)
-  vidContainer.appendChild(makeLabel(peerConnections[peerUuid].displayName))
+  vidContainer.appendChild(makeLabel(peersMap[peerUuid].displayName))
 
   document.getElementById('videos').appendChild(vidContainer)
   updateLayout()

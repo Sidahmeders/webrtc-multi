@@ -2,7 +2,6 @@ import { sendMessage } from './utils.js'
 import { 
   createlocalMediaStream, 
   onIceCandidateHandler, 
-  onOpenWssHandler, 
   onPeerDisconnectHandler, 
   remoteStreamHandler 
 } from './handlers.js'
@@ -12,49 +11,46 @@ import {
   
   // set up websocket and message all existing clients
   wss = new WebSocket(wssURL)
-  wss.onopen = onOpenWssHandler
   wss.onmessage = handleServerMessages
 })();
 
 function handleServerMessages(message) {
   message = JSON.parse(message.data)
-  const { peerName, peerUuid, peerICE, peerSDP, dest } = message
+  console.log(message)
+  const { wsId, peerName, peerUuid, peerICE, peerSDP, dest } = message
 
-  // Ignore messages that are not for us or from ourselves NOTE: this should be handled on the server
-  if (peerUuid == localUuid || (dest != localUuid && dest != 'all')) return
-
-  if (peerName && dest == 'all') {
-    // set up peer connection object for a newcomer peer
-    setUpPeer(peerUuid, peerName)
-    sendMessage({ peerName: displayName, peerUuid: localUuid, dest: peerUuid })
-  } else if (peerName && dest == localUuid) {
-    // initiate call if we are the newcomer peer
-    setUpPeer(peerUuid, peerName, true)
-  } else if (peerSDP) {
-    peerConnections[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP))
-    // Only create answers in response to offers
-    if (peerSDP.type == 'offer') {
-      peerConnections[peerUuid].pc.createAnswer().then(description => createdDescription(description, peerUuid))
-    }
-  } else if (peerICE) {
-    peerConnections[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE))
+  if (!localUuid) {
+    localUuid = wsId
+    sendMessage({ peerName: displayName, peerUuid: localUuid, dest: 'all' })
   }
+  if (peerName) {
+    if (dest == 'all') {
+      setUpPeer(peerUuid, peerName) // set up peer connection object for a newcomer peer
+      sendMessage({ peerName: displayName, peerUuid: localUuid, dest: peerUuid })
+    }
+    else setUpPeer(peerUuid, peerName, true) // initiate call if we are the newcomer peer
+  }
+  if (peerSDP) {
+    peersMap[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP))
+    if (peerSDP.type == 'offer') peersMap[peerUuid].pc.createAnswer().then(description => createdDescription(description, peerUuid))
+  }
+  if (peerICE) peersMap[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE))
 }
 
-function setUpPeer(peerUuid, displayName, initCall = false) {
-  peerConnections[peerUuid] = { displayName, pc: new RTCPeerConnection(peerConnectionConfig) }
-  peerConnections[peerUuid].pc.onicecandidate = event => onIceCandidateHandler(event, peerUuid)
-  peerConnections[peerUuid].pc.ontrack = event => remoteStreamHandler(event, peerUuid)
-  peerConnections[peerUuid].pc.oniceconnectionstatechange = event => onPeerDisconnectHandler(event, peerUuid)
-  localStream.getTracks().forEach(track => peerConnections[peerUuid].pc.addTrack(track, localStream))
+async function setUpPeer(peerUuid, displayName, initCall = false) {
+  peersMap[peerUuid] = { id: peerUuid, displayName, pc: new RTCPeerConnection(peerConnectionConfig) }
+  peersMap[peerUuid].pc.onicecandidate = event => onIceCandidateHandler(event, peerUuid)
+  peersMap[peerUuid].pc.ontrack = event => remoteStreamHandler(event, peerUuid)
+  peersMap[peerUuid].pc.oniceconnectionstatechange = event => onPeerDisconnectHandler(event, peerUuid)
+  localStream.getTracks().forEach(track => peersMap[peerUuid].pc.addTrack(track, localStream))
   
   if (initCall) {
-    peerConnections[peerUuid].pc.createOffer().then(description => createdDescription(description, peerUuid))
+    const description = await peersMap[peerUuid].pc.createOffer()
+    await createdDescription(description, peerUuid)
   }
 }
 
-function createdDescription(description, peerUuid) {
-  peerConnections[peerUuid].pc.setLocalDescription(description).then(() => {
-    sendMessage({ peerSDP: peerConnections[peerUuid].pc.localDescription, peerUuid: localUuid, dest: peerUuid })
-  })
+async function createdDescription(description, peerUuid) {
+  await peersMap[peerUuid].pc.setLocalDescription(description)
+  sendMessage({ peerSDP: description, peerUuid: localUuid, dest: peerUuid })
 }
