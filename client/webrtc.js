@@ -3,18 +3,18 @@ import {
   localMediaStreamHandler,
   remoteMediaStreamHandler,
   onIceCandidateHandler,
+  handleSDPSignalling,
   onPeerDisconnectHandler, 
 } from './handlers.js'
 
 (async function start() {
   await localMediaStreamHandler()
-  
   // set up websocket and message all existing clients
   wss = new WebSocket(wssURL)
-  wss.onmessage = handleServerMessages
+  wss.onmessage = handleWssMessages
 })();
 
-function handleServerMessages(message) {
+async function handleWssMessages(message) {
   message = JSON.parse(message.data)
   const { wsId, peerName, peerUuid, peerICE, peerSDP, dest } = message
   
@@ -25,32 +25,34 @@ function handleServerMessages(message) {
 
   if (peerName) {
     if (dest == 'all') {
-      setUpPeer(peerUuid, peerName) // set up peer connection object for a newcomer peer
+      setUpPeer(peerUuid, peerName) // set up peer connection object
       sendMessage({ peerName: displayName, peerUuid: localUuid, dest: peerUuid })
+    } else {
+      setUpPeer(peerUuid, peerName) // initiate a call
+      const offerDescription = await peersMap[peerUuid].pc.createOffer()
+      await handleSDPSignalling(offerDescription, peerUuid)
     }
-    else setUpPeer(peerUuid, peerName, true) // initiate call if we are the newcomer peer
   }
-  if (peerSDP) {
-    peersMap[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP))
-    if (peerSDP.type == 'offer') peersMap[peerUuid].pc.createAnswer().then(description => createdDescription(description, peerUuid))
-  }
-  if (peerICE) peersMap[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE))
+  if (peerSDP) SDPHandler(peerSDP, peerUuid)
+  if (peerICE) ICECandidatesHandler(peerICE, peerUuid)
 }
 
-async function setUpPeer(peerUuid, displayName, initCall = false) {
+async function SDPHandler(peerSDP, peerUuid) {
+  peersMap[peerUuid].pc.setRemoteDescription(new RTCSessionDescription(peerSDP))
+  if (peerSDP.type == 'offer') {
+    const answerDescription = await peersMap[peerUuid].pc.createAnswer()
+    await handleSDPSignalling(answerDescription, peerUuid)
+  }
+}
+
+function ICECandidatesHandler(peerICE, peerUuid) {
+  peersMap[peerUuid].pc.addIceCandidate(new RTCIceCandidate(peerICE))
+}
+
+async function setUpPeer(peerUuid, displayName) {
   peersMap[peerUuid] = { id: peerUuid, displayName, pc: new RTCPeerConnection(peerConnectionConfig) }
   peersMap[peerUuid].pc.onicecandidate = event => onIceCandidateHandler(event, peerUuid)
   peersMap[peerUuid].pc.ontrack = event => remoteMediaStreamHandler(event, peerUuid)
   peersMap[peerUuid].pc.oniceconnectionstatechange = event => onPeerDisconnectHandler(event, peerUuid)
   localStream.getTracks().forEach(track => peersMap[peerUuid].pc.addTrack(track, localStream))
-  
-  if (initCall) {
-    const description = await peersMap[peerUuid].pc.createOffer()
-    await createdDescription(description, peerUuid)
-  }
-}
-
-async function createdDescription(description, peerUuid) {
-  await peersMap[peerUuid].pc.setLocalDescription(description)
-  sendMessage({ peerSDP: description, peerUuid: localUuid, dest: peerUuid })
 }

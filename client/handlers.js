@@ -27,12 +27,15 @@ export function remoteMediaStreamHandler(event, peerUuid) {
   updateLayout()
 }
 
-// export function sdpHandler()
-
 export function onIceCandidateHandler(event, peerUuid) {
   if (event.candidate) {
     sendMessage({ peerICE: event.candidate, peerUuid: localUuid, dest: peerUuid })
   }
+}
+
+export async function handleSDPSignalling(description, peerUuid) {
+  await peersMap[peerUuid].pc.setLocalDescription(description)
+  sendMessage({ peerSDP: description, peerUuid: localUuid, dest: peerUuid })
 }
 
 export function onPeerDisconnectHandler(event, peerUuid) {
