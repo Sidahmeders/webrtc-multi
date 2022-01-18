@@ -1,13 +1,13 @@
 import { sendMessage } from './utils.js'
-import { 
-  createlocalMediaStream, 
-  onIceCandidateHandler, 
+import {
+  localMediaStreamHandler,
+  remoteMediaStreamHandler,
+  onIceCandidateHandler,
   onPeerDisconnectHandler, 
-  remoteStreamHandler 
 } from './handlers.js'
 
 (async function start() {
-  await createlocalMediaStream()
+  await localMediaStreamHandler()
   
   // set up websocket and message all existing clients
   wss = new WebSocket(wssURL)
@@ -16,13 +16,13 @@ import {
 
 function handleServerMessages(message) {
   message = JSON.parse(message.data)
-  console.log(message)
   const { wsId, peerName, peerUuid, peerICE, peerSDP, dest } = message
-
+  
   if (!localUuid) {
     localUuid = wsId
     sendMessage({ peerName: displayName, peerUuid: localUuid, dest: 'all' })
   }
+
   if (peerName) {
     if (dest == 'all') {
       setUpPeer(peerUuid, peerName) // set up peer connection object for a newcomer peer
@@ -40,7 +40,7 @@ function handleServerMessages(message) {
 async function setUpPeer(peerUuid, displayName, initCall = false) {
   peersMap[peerUuid] = { id: peerUuid, displayName, pc: new RTCPeerConnection(peerConnectionConfig) }
   peersMap[peerUuid].pc.onicecandidate = event => onIceCandidateHandler(event, peerUuid)
-  peersMap[peerUuid].pc.ontrack = event => remoteStreamHandler(event, peerUuid)
+  peersMap[peerUuid].pc.ontrack = event => remoteMediaStreamHandler(event, peerUuid)
   peersMap[peerUuid].pc.oniceconnectionstatechange = event => onPeerDisconnectHandler(event, peerUuid)
   localStream.getTracks().forEach(track => peersMap[peerUuid].pc.addTrack(track, localStream))
   

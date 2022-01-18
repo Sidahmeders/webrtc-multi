@@ -33,10 +33,14 @@ wss.sendClientId = function(ws) {
 }
 
 wss.broadcast = function(ws, message) {
+  let { dest } = JSON.parse(message)
+
   wss.clients.forEach(client => {
-    if (client.readyState === WebSokect.OPEN) {
-      if (client != ws || message.dest == ws.id || message.dest == 'all') client.send(message)
-    }
+    if (
+        client != ws &&
+        client.readyState === WebSokect.OPEN &&
+        (dest == client.id || dest == 'all')
+      ) client.send(message)
   })
 }
 

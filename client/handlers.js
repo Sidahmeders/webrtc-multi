@@ -1,21 +1,6 @@
 import { sendMessage, updateLayout, makeLabel } from './utils.js'
 
-export function onIceCandidateHandler(event, peerUuid) {
-  if (event.candidate) {
-    sendMessage({ peerICE: event.candidate, peerUuid: localUuid, dest: peerUuid })
-  }
-}
-
-export function onPeerDisconnectHandler(event, peerUuid) {
-  let state = peersMap[peerUuid].pc.iceConnectionState
-  if (state === "failed" || state === "closed" || state === "disconnected") {
-    delete peersMap[peerUuid]
-    document.getElementById('videos').removeChild(document.getElementById('remoteVideo_' + peerUuid))
-    updateLayout()
-  }
-}
-
-export async function createlocalMediaStream() {
+export async function localMediaStreamHandler() {
   displayName = prompt('Enter your name', '')
   document.getElementById('localVideoContainer').appendChild(makeLabel(displayName))
 
@@ -25,7 +10,7 @@ export async function createlocalMediaStream() {
   document.getElementById('localVideo').srcObject = localStream
 }
 
-export function remoteStreamHandler(event, peerUuid) {
+export function remoteMediaStreamHandler(event, peerUuid) {
   //assign stream to new HTML video element
   let vidElement = document.createElement('video')
   vidElement.setAttribute('autoplay', '')
@@ -40,4 +25,21 @@ export function remoteStreamHandler(event, peerUuid) {
 
   document.getElementById('videos').appendChild(vidContainer)
   updateLayout()
+}
+
+// export function sdpHandler()
+
+export function onIceCandidateHandler(event, peerUuid) {
+  if (event.candidate) {
+    sendMessage({ peerICE: event.candidate, peerUuid: localUuid, dest: peerUuid })
+  }
+}
+
+export function onPeerDisconnectHandler(event, peerUuid) {
+  let state = peersMap[peerUuid].pc.iceConnectionState
+  if (state === "failed" || state === "closed" || state === "disconnected") {
+    delete peersMap[peerUuid]
+    document.getElementById('videos').removeChild(document.getElementById('remoteVideo_' + peerUuid))
+    updateLayout()
+  }
 }
